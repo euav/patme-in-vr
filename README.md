@@ -1,14 +1,14 @@
 # PatMe-in-VR, Haptic Feedback for VRChat
 
-Bridges VRChat's OSC to Bluetooth LE haptic device, so your friends can **pat you in VR**. This project consists of host app written in Rust and Arduino firmware for ESP32 board with BLE.
+Bridges VRChat's OSC avatar parameters to a Bluetooth LE haptic device, so your friends can **pat you in VR**. The host app is written in Rust; the device firmware is an Arduino (ESP32) sketch.
 
-Based on the [Patstrap](https://github.com/danielfvm/Patstrap) project by [danielfvm](https://github.com/danielfvm).
+Inspired by the [Patstrap](https://github.com/danielfvm/Patstrap) project by [danielfvm](https://github.com/danielfvm).
 
 
 ## What it does
 
 Host app listens for OSC avatar parameters from VRChat and forwards them as
-haptic intensity values over Bluetooth LE to a PatMe-in-VR device.
+haptic intensity values over BLE to a PatMe-in-VR device.
 
 - **Input**: OSC messages with addresses like `/avatar/parameters/haptic_0`
   (and `_1`, etc.) and a single float argument.
@@ -36,3 +36,9 @@ You can configure host app via CLI flags or environment variables.
   - Flag: `--send-interval-ms <MS>`
   - Env: `PATME_SEND_INTERVAL_MS`
   - Default: `20`
+
+
+## Notes
+
+- The host smooths incoming parameters with a decay filter and sends compacted float values to the device BLE characteristic.
+- BLE service/characteristic UUIDs are defined in the firmware and matched by the host: see [firmware/firmware.ino](firmware/firmware.ino) and [src/ble.rs](src/ble.rs).
