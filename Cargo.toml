@@ -10,6 +10,12 @@ keywords = ["osc", "ble", "esp32", "vrchat"]
 license = "MIT"
 categories = ["games"]
 
+[package.metadata.wix]
+upgrade-guid = "3BB9FB89-2AD9-4C0F-91B1-82ACECBF02CB"
+path-guid = "6E0CEBC8-50C1-4C9F-973D-52FABA25633D"
+license = false
+eula = false
+
 [dependencies]
 bluest = { version = "0.6.9" }
 env_logger = "0.11.8"
@@ -18,3 +24,8 @@ futures-lite = "2.6.1"
 log = "0.4.29"
 rosc = "0.11.4"
 tokio = { version = "1.49.0", features = ["full"] }
+
+# The profile that 'dist' will build with
+[profile.dist]
+inherits = "release"
+lto = "thin"
