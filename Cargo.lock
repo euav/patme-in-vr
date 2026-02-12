@@ -164,7 +164,6 @@ dependencies = [
  "objc2",
  "objc2-core-bluetooth",
  "objc2-foundation",
- "serde",
  "tokio",
  "tracing",
  "uuid",
@@ -371,7 +370,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb"
 dependencies = [
  "libc",
- "windows-sys 0.61.2",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -1228,7 +1227,6 @@ checksum = "ee48d38b119b0cd71fe4141b30f5ba9c7c5d9f4e7a3a8b4a674e4b6ef789976f"
 dependencies = [
  "getrandom",
  "js-sys",
- "serde_core",
  "wasm-bindgen",
 ]
 

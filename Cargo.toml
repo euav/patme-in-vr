@@ -1,11 +1,17 @@
 [package]
 name = "patme_in_vr"
-version = "0.1.0"
 edition = "2024"
-default-run = "patme_in_vr"
+version = "0.1.0"
+authors = ["Evgeny Averyanov"]
+description = "Bridges VRChat's OSC avatar parameters to a Bluetooth LE haptic device"
+repository = "https://github.com/euav/patme-in-vr"
+readme = "README.md"
+keywords = ["osc", "ble", "esp32", "vrchat"]
+license = "MIT"
+categories = ["games"]
 
 [dependencies]
-bluest = { version = "0.6.9", features = ["serde"] }
+bluest = { version = "0.6.9" }
 env_logger = "0.11.8"
 clap = { version = "4.5.57", features = ["derive", "env"] }
 futures-lite = "2.6.1"
