@@ -18,13 +18,13 @@ use tokio::time::Duration;
     about = "VRChat's OSC to BLE haptics bridge"
 )]
 struct Config {
-    #[arg(long, env = "PATME_IN_VR_OSC_ADDR", default_value = "0.0.0.0:9001")]
+    #[arg(long, env = "PATME_OSC_ADDR", default_value = "0.0.0.0:9001")]
     osc_addr: String,
 
-    #[arg(long, env = "PATME_IN_VR_HAPTICS_COUNT", default_value_t = 2)]
+    #[arg(long, env = "PATME_HAPTICS_COUNT", default_value_t = 2)]
     haptics_count: usize,
 
-    #[arg(long, env = "PATME_IN_VR_SEND_INTERVAL_MS", default_value_t = 20)]
+    #[arg(long, env = "PATME_SEND_INTERVAL_MS", default_value_t = 20)]
     send_interval_ms: u64,
 }
 
