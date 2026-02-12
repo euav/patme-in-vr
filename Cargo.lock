@@ -822,7 +822,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "patme_in_vr"
+name = "patme-in-vr"
 version = "0.1.0"
 dependencies = [
  "bluest",

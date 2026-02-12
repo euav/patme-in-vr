@@ -1,5 +1,5 @@
 [package]
-name = "patme_in_vr"
+name = "patme-in-vr"
 edition = "2024"
 version = "0.1.0"
 authors = ["Evgeny Averyanov"]
