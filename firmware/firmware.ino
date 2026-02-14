@@ -21,7 +21,7 @@ bool is_connected = false;
 uint32_t disconnected_at = 0;
 BLECharacteristic* battery_characteristic = nullptr;
 
-RTC_DATA_ATTR float current[n_haptics] = {0};
+RTC_DATA_ATTR float intensity[n_haptics] = {0};
 RTC_DATA_ATTR float received[n_haptics] = {0};
 RTC_DATA_ATTR uint32_t updated_at = 0;
 
@@ -92,26 +92,45 @@ void update_haptic_levels() {
   const float decay = 1.2;
   const float steep = 4.5;
   const float speed = 18.0;
+  const float lowest = 0.1;
 
   float elapsed = elapsed_since(updated_at);
   float factor = constrain((exp(steep * (decay - elapsed)) - 1.0f) / (exp(steep) - 1.0f), 0.0f, 1.0f);
   for (int idx = 0; idx < n_haptics; idx++) {
-    float delta = constrain(elapsed * speed, 0, 1) * (factor * received[idx] - current[idx]);
-    current[idx] = constrain(current[idx] + delta, 0, 1);
-    analogWrite(pins[idx], int((1 << resolution - 1) * current[idx]));
+    float delta = constrain(elapsed * speed, 0, 1) * (factor * received[idx] - intensity[idx]);
+    intensity[idx] = constrain(intensity[idx] + delta, lowest, 1.0f);
+    analogWrite(pins[idx], int((1 << resolution - 1) * intensity[idx]));
   }
+}
+
+uint8_t battery_level(float voltage) {
+    /* SlimeVR Code is placed under the MIT license
+     * Copyright (c) 2020 Eiren Rain and SlimeVR Contributors
+     * https://github.com/SlimeVR/SlimeVR-Tracker-ESP/blob/main/src/batterymonitor.cpp
+     */
+
+    float level;
+    if (voltage > 3.975f) {
+      level = (voltage - 2.920f) * 0.8f;
+    } else if (voltage > 3.678f) {
+      level = (voltage - 3.300f) * 1.25f;
+    } else if (voltage > 3.489f) {
+      level = (voltage - 3.400f) * 1.7f;
+    } else if (voltage > 3.360f) {
+      level = (voltage - 3.300f) * 0.8f;
+    } else {
+      level = (voltage - 3.200f) * 0.3f;
+    }
+
+    return constrain(uint8_t(100.0f * (level - 0.05f) / 0.95f), 0, 100);
 }
 
 void update_battery_level() {
   const float voltage_divider = 2.0f;
   const float exp_window = 0.3f;
-  const float max_volts = 4.2f;
-  const float min_volts = 3.0f;
-
   float raw_voltage = voltage_divider * analogReadMilliVolts(battery_pin);
   static float filtered = exp_window * raw_voltage + (1.0f - exp_window) * filtered;
-  uint8_t percentage = 100.0f * (filtered - min_volts) / (max_volts - min_volts);
-  battery_characteristic->setValue(constrain(percentage, 0, 100));
+  battery_characteristic->setValue(battery_level(filtered));
 
 }
 

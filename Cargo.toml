@@ -9,6 +9,7 @@ readme = "README.md"
 keywords = ["osc", "ble", "esp32", "vrchat"]
 license = "MIT"
 categories = ["games"]
+exclude = ["firmware", ".github"]
 
 [package.metadata.wix]
 upgrade-guid = "3BB9FB89-2AD9-4C0F-91B1-82ACECBF02CB"
