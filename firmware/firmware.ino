@@ -21,7 +21,7 @@ bool is_connected = false;
 uint32_t disconnected_at = 0;
 BLECharacteristic* battery_characteristic = nullptr;
 
-RTC_DATA_ATTR float intensity[n_haptics] = {0};
+RTC_DATA_ATTR float strength[n_haptics] = {0};
 RTC_DATA_ATTR float received[n_haptics] = {0};
 RTC_DATA_ATTR uint32_t updated_at = 0;
 
@@ -92,14 +92,15 @@ void update_haptic_levels() {
   const float decay = 1.2;
   const float steep = 4.5;
   const float speed = 18.0;
-  const float lowest = 0.1;
+  const float lowest = 0.42;
 
   float elapsed = elapsed_since(updated_at);
   float factor = constrain((exp(steep * (decay - elapsed)) - 1.0f) / (exp(steep) - 1.0f), 0.0f, 1.0f);
   for (int idx = 0; idx < n_haptics; idx++) {
-    float delta = constrain(elapsed * speed, 0, 1) * (factor * received[idx] - intensity[idx]);
-    intensity[idx] = constrain(intensity[idx] + delta, lowest, 1.0f);
-    analogWrite(pins[idx], int((1 << resolution - 1) * intensity[idx]));
+    float increment = constrain(elapsed * speed, 0, 1) * (factor * received[idx] - strength[idx]);
+    strength[idx] = constrain(strength[idx] + increment, 0.0f, 1.0f);
+    float cropped = strength[idx] ? lowest + (1.0f - lowest) * strength[idx] : 0.0f;
+    analogWrite(pins[idx], int((1 << resolution - 1) * cropped));
   }
 }
 
