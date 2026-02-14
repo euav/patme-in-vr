@@ -28,30 +28,14 @@ impl HapticParam {
     }
 }
 
-fn handle_packet(packet: OscPacket, sender: &Sender<HapticParam>) {
-    match packet {
-        OscPacket::Message(message) => {
-            if let Some(param) = HapticParam::try_from_message(message) {
-                debug!("osc> {:?}", param);
-                let _ = sender.send(param);
-            }
-        }
-        OscPacket::Bundle(OscBundle { content, .. }) => {
-            for inner in content {
-                handle_packet(inner, sender);
-            }
-        }
-    }
-}
-
 pub struct Server {
     socket: UdpSocket,
     sender: Sender<HapticParam>,
 }
 
 impl Server {
-    pub async fn new(sender: Sender<HapticParam>, bind_addr: &str) -> std::io::Result<Server> {
-        let socket = UdpSocket::bind(bind_addr).await?;
+    pub async fn new(port: u16, sender: Sender<HapticParam>) -> std::io::Result<Server> {
+        let socket = UdpSocket::bind(("0.0.0.0", port)).await?;
         info!("UDP socket {} has been bound", socket.local_addr()?);
         Ok(Self { socket, sender })
     }
@@ -75,7 +59,23 @@ impl Server {
                 }
             };
 
-            handle_packet(packet, &self.sender);
+            self.handle_packet(packet);
+        }
+    }
+
+    fn handle_packet(&self, packet: OscPacket) {
+        match packet {
+            OscPacket::Message(message) => {
+                if let Some(param) = HapticParam::try_from_message(message) {
+                    debug!("osc> {:?}", param);
+                    let _ = self.sender.send(param);
+                }
+            }
+            OscPacket::Bundle(OscBundle { content, .. }) => {
+                for inner in content {
+                    self.handle_packet(inner);
+                }
+            }
         }
     }
 }
