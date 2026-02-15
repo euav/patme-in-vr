@@ -28,9 +28,10 @@ RTC_DATA_ATTR uint32_t updated_at = 0;
 
 class HapticCallback : public BLECharacteristicCallbacks {
   void onWrite(BLECharacteristic *characteristic) {
-    float *data = reinterpret_cast<float*>(characteristic->getData());
+    if (characteristic->getValue().length() < n_haptics * sizeof(float)) return;
+    const float *data = reinterpret_cast<const float*>(characteristic->getData());
     for (int idx = 0; idx < n_haptics; idx++) {
-      if (data[idx] != data[idx]) received[idx] = 0.0f;
+      if (data[idx] != data[idx]) received[idx] = 0.0f;  // NaN check
       else received[idx] = constrain(data[idx], 0.0f, 1.0f);
     }
     updated_at = micros();
@@ -100,7 +101,7 @@ void update_haptic_levels() {
     float increment = constrain(elapsed * speed, 0, 1) * (factor * received[idx] - strength[idx]);
     strength[idx] = constrain(strength[idx] + increment, 0.0f, 1.0f);
     float cropped = strength[idx] ? lowest + (1.0f - lowest) * strength[idx] : 0.0f;
-    analogWrite(pins[idx], int((1 << resolution - 1) * cropped));
+    analogWrite(pins[idx], (int)(((1UL << resolution) - 1) * cropped));
   }
 }
 
@@ -129,10 +130,11 @@ uint8_t battery_level(float voltage) {
 void update_battery_level() {
   const float voltage_divider = 2.0f;
   const float exp_window = 0.3f;
-  float raw_voltage = voltage_divider * analogReadMilliVolts(battery_pin);
-  static float filtered = exp_window * raw_voltage + (1.0f - exp_window) * filtered;
-  battery_characteristic->setValue(battery_level(filtered));
+  static float voltage = 0.0f;
 
+  float reading = voltage_divider * (float)analogReadMilliVolts(battery_pin) / 1000.0f;
+  voltage = exp_window * reading + (1.0f - exp_window) * voltage;
+  battery_characteristic->setValue(battery_level(voltage));
 }
 
 void loop() {
