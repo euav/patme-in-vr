@@ -1,10 +1,8 @@
 use crate::ble::HapticState;
 use crate::osc::HapticParam;
 use std::collections::VecDeque;
-use tokio::sync::watch::{Receiver, Sender};
+use tokio::sync::{mpsc::UnboundedReceiver, watch::Sender};
 use tokio::time::{Duration, Instant, MissedTickBehavior};
-
-const FILTER_DEPTH: usize = 6;
 
 #[derive(Clone)]
 struct DecayFilter {
@@ -12,12 +10,13 @@ struct DecayFilter {
 }
 
 impl DecayFilter {
+    const HISTORY_DEPTH: usize = 6;
     const PERIOD_SECS: f32 = 0.3;
 
-    fn new(depth: usize) -> Self {
+    fn new() -> Self {
         let now = Instant::now();
         Self {
-            history: (0..depth).map(|_| (now, 0f32)).collect(),
+            history: (0..Self::HISTORY_DEPTH).map(|_| (now, 0f32)).collect(),
         }
     }
 
@@ -59,7 +58,7 @@ impl HapticState {
 }
 
 pub struct Compactor {
-    params: Receiver<HapticParam>,
+    params: UnboundedReceiver<HapticParam>,
     states: Sender<HapticState>,
     filters: Vec<DecayFilter>,
     send_interval: Duration,
@@ -67,12 +66,12 @@ pub struct Compactor {
 
 impl Compactor {
     pub fn new(
-        params: Receiver<HapticParam>,
+        params: UnboundedReceiver<HapticParam>,
         states: Sender<HapticState>,
         haptics_count: usize,
         send_interval: Duration,
     ) -> Self {
-        let filters = vec![DecayFilter::new(FILTER_DEPTH); haptics_count];
+        let filters = vec![DecayFilter::new(); haptics_count];
 
         Self {
             params,
@@ -83,22 +82,18 @@ impl Compactor {
     }
 
     pub async fn start(mut self) {
-        let haptics_count = self.filters.len();
-
         let mut tick = tokio::time::interval(self.send_interval);
         tick.set_missed_tick_behavior(MissedTickBehavior::Skip);
 
         loop {
             tokio::select! {
-                _ = self.params.changed() => {
-                    let HapticParam(index, value) = *self.params.borrow();
-                    if index < haptics_count {
+                Some(HapticParam(index, value)) = self.params.recv() => {
+                    if index <  self.filters.len() {
                         self.filters[index].append(value);
                     }
                 }
                 _ = tick.tick() => {
-                    let state = HapticState::from_decay_filters(&self.filters);
-                    let _ = self.states.send(state);
+                    let _ = self.states.send(HapticState::from_decay_filters(&self.filters));
                 }
             }
         }

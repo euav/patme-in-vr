@@ -4,11 +4,10 @@ mod osc;
 
 use crate::ble::{Client, HapticState};
 use crate::compaction::Compactor;
-use crate::osc::{HapticParam, Server};
 
 use clap::Parser;
 use tokio::signal;
-use tokio::sync::watch;
+use tokio::sync::{mpsc, watch};
 use tokio::time::Duration;
 
 #[derive(Parser, Debug)]
@@ -33,16 +32,18 @@ async fn main() -> std::io::Result<()> {
     env_logger::init();
     let config = Config::parse();
 
-    let (tx, params) = watch::channel(HapticParam::default());
-    let (states, rx) = watch::channel(HapticState::new(config.haptics_count));
+    let (osc_tx, osc_rx) = mpsc::unbounded_channel();
+    let (ble_tx, ble_rx) = watch::channel(HapticState::new(config.haptics_count));
 
-    let osc = Server::new(config.osc_port, tx)
+    let osc = osc::Server::new(config.osc_port, osc_tx)
         .await
         .expect("Failed to start OSC server");
-    let mut ble = Client::new(rx).await.expect("Failed to create BLE client");
+    let mut ble = Client::new(ble_rx)
+        .await
+        .expect("Failed to create BLE client");
     let compactor = Compactor::new(
-        params,
-        states,
+        osc_rx,
+        ble_tx,
         config.haptics_count,
         Duration::from_millis(config.send_interval_ms),
     );

@@ -1,6 +1,6 @@
 use log::{debug, error, info};
 use rosc::{OscBundle, OscMessage, OscPacket, OscType};
-use tokio::{net::UdpSocket, sync::watch::Sender};
+use tokio::{net::UdpSocket, sync::mpsc::UnboundedSender};
 
 const OSC_HAPTIC_PREFIX: &str = "/avatar/parameters/haptic_";
 
@@ -30,11 +30,11 @@ impl HapticParam {
 
 pub struct Server {
     socket: UdpSocket,
-    sender: Sender<HapticParam>,
+    sender: UnboundedSender<HapticParam>,
 }
 
 impl Server {
-    pub async fn new(port: u16, sender: Sender<HapticParam>) -> std::io::Result<Server> {
+    pub async fn new(port: u16, sender: UnboundedSender<HapticParam>) -> std::io::Result<Server> {
         let socket = UdpSocket::bind(("0.0.0.0", port)).await?;
         info!("UDP socket {} has been bound", socket.local_addr()?);
         Ok(Self { socket, sender })
