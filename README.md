@@ -22,10 +22,9 @@ haptic intensity values over BLE to a PatMe-in-VR device.
 You can configure host app via CLI flags or environment variables.
 
 - **OSC bind address**
-  - Flag: `--osc-addr <ADDR>`
-  - Env: `PATME_OSC_ADDR`
-  - Default: `0.0.0.0:9001`
-
+  - Flag: `--osc-port <PORT>`
+  - Env: `PATME_OSC_PORT`
+  - Default: `9001`
 
 - **Haptics count (number of vibros)**
   - Flag: `--haptics-count <N>`
@@ -37,6 +36,8 @@ You can configure host app via CLI flags or environment variables.
   - Env: `PATME_SEND_INTERVAL_MS`
   - Default: `20`
 
+- **Headless mode without GUI**
+  - Flag: `--headless`
 
 ## Notes
 
