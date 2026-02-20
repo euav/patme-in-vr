@@ -1,7 +1,8 @@
 use crate::ble::HapticState;
 use crate::osc::PatMeParam;
 use std::collections::VecDeque;
-use tokio::sync::{mpsc::UnboundedReceiver, watch::Sender};
+use tokio::sync::watch::Sender;
+use tokio::sync::{mpsc::UnboundedReceiver, watch::Receiver};
 use tokio::time::{Duration, Instant, MissedTickBehavior};
 
 #[derive(Clone)]
@@ -63,6 +64,7 @@ pub struct Compactor {
     filters: Vec<DecayFilter>,
     max_intensity: f32,
     send_interval: Duration,
+    max_intensity_rx: Option<Receiver<u8>>,
 }
 
 impl Compactor {
@@ -71,6 +73,7 @@ impl Compactor {
         states: Sender<HapticState>,
         haptics_count: usize,
         send_interval: Duration,
+        max_intensity_rx: Option<Receiver<u8>>,
     ) -> Self {
         let filters = vec![DecayFilter::new(); haptics_count];
 
@@ -80,7 +83,20 @@ impl Compactor {
             filters,
             max_intensity: 0.7f32,
             send_interval,
+            max_intensity_rx,
         }
+    }
+
+    fn current_max_intensity(&mut self) -> f32 {
+        if let Some(ref rx) = self.max_intensity_rx {
+            match rx.has_changed() {
+                Ok(true) => {
+                    self.max_intensity = (*rx.borrow() as f32 / 100.0).clamp(0.0, 1.0);
+                }
+                _ => {}
+            }
+        }
+        self.max_intensity
     }
 
     pub async fn start(mut self) {
@@ -102,7 +118,7 @@ impl Compactor {
                     }
                 }
                 _ = tick.tick() => {
-                    let scale = self.max_intensity;
+                    let scale = self.current_max_intensity();
                     let _ = self.states.send(HapticState::from_decay_filters(&self.filters, scale));
                 }
             }
