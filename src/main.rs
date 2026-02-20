@@ -1,5 +1,5 @@
 mod ble;
-mod compaction;
+mod etl;
 mod gui;
 mod osc;
 
@@ -122,7 +122,7 @@ pub async fn bridge(
     let mut ble = ble::Client::new(ble_rx, status_tx)
         .await
         .expect("Failed to create BLE client");
-    let compactor = compaction::Compactor::new(
+    let compactor = etl::Compactor::new(
         osc_rx,
         ble_tx,
         config.haptics_count,
