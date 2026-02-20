@@ -38,7 +38,7 @@ async fn main() -> std::io::Result<()> {
     let osc = osc::Server::new(config.osc_port, osc_tx)
         .await
         .expect("Failed to start OSC server");
-    let mut ble = Client::new(ble_rx)
+    let mut ble = Client::new(ble_rx, None)
         .await
         .expect("Failed to create BLE client");
     let compactor = Compactor::new(

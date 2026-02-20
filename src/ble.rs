@@ -1,11 +1,11 @@
-use bluest::{Adapter, Characteristic, Device, Uuid};
+use bluest::{Adapter, Characteristic, Device, Uuid, btuuid};
 use futures_lite::stream::StreamExt;
-use log::{debug, error, info};
+use log::{error, info, warn};
 use std::{error::Error, time::Duration};
 use tokio::sync::watch::Receiver;
 
 const SERVICE_UUID: Uuid = Uuid::from_u128(0xab96bc38_67c5_44a5_94bf_3146bf493198u128);
-const HAPTICS_UUID: Uuid = Uuid::from_u128(0x5db0ca73_7963_492d_8a9c_40bb6b84c2f0u128);
+const HAPTIC_UUID: Uuid = Uuid::from_u128(0x5db0ca73_7963_492d_8a9c_40bb6b84c2f0u128);
 const RECONNECT_BACKOFF: Duration = Duration::from_millis(500);
 
 #[derive(Clone, Debug, PartialEq)]
@@ -25,14 +25,30 @@ impl HapticState {
     }
 }
 
+#[derive(Clone, Debug)]
+pub enum Status {
+    Connection(bool),
+    Battery(u8),
+}
+
+struct Connection {
+    device: Device,
+    haptic: Characteristic,
+    battery: Option<Characteristic>,
+}
+
 pub struct Client {
     adapter: Adapter,
     receiver: Receiver<HapticState>,
-    connection: Option<(Device, Characteristic)>,
+    status_tx: Option<tokio::sync::mpsc::UnboundedSender<Status>>,
+    connection: Option<Connection>,
 }
 
 impl Client {
-    pub async fn new(receiver: Receiver<HapticState>) -> std::io::Result<Client> {
+    pub async fn new(
+        receiver: Receiver<HapticState>,
+        status_tx: Option<tokio::sync::mpsc::UnboundedSender<Status>>,
+    ) -> std::io::Result<Client> {
         let adapter = Adapter::default().await.expect("No BLE adapter");
         adapter
             .wait_available()
@@ -41,6 +57,7 @@ impl Client {
         Ok(Self {
             adapter,
             receiver,
+            status_tx,
             connection: None,
         })
     }
@@ -48,47 +65,67 @@ impl Client {
     pub async fn start(&mut self) {
         loop {
             if self.receiver.changed().await.is_err() {
-                info!("BLE receiver closed; stopping BLE task");
                 return;
             }
-
             let state = self.receiver.borrow().clone();
-            debug!("ble> {:?}", state);
 
             if !self.is_connected().await {
-                self.connection = self.find_device().await.ok();
-                if !self.is_connected().await {
-                    tokio::time::sleep(RECONNECT_BACKOFF).await;
-                    continue;
+                match self.find_device().await {
+                    Ok(conn) => {
+                        self.notify(Status::Connection(true));
+                        self.connection = Some(conn);
+                    }
+                    Err(_) => {
+                        tokio::time::sleep(RECONNECT_BACKOFF).await;
+                        continue;
+                    }
                 }
             }
 
-            if let Err(e) = self.write_state(state).await {
+            if let Err(e) = self.write_state(&state).await {
                 error!("BLE write failed: {}", e);
+                self.notify(Status::Connection(false));
                 self.connection = None;
                 tokio::time::sleep(RECONNECT_BACKOFF).await;
+                continue;
+            }
+
+            if let Some(pct) = self.read_battery().await {
+                self.notify(Status::Battery(pct));
             }
         }
+    }
+
+    fn notify(&self, status: Status) {
+        if let Some(tx) = &self.status_tx {
+            let _ = tx.send(status);
+        }
+    }
+
+    async fn read_battery(&self) -> Option<u8> {
+        let conn = self.connection.as_ref()?;
+        let bat = conn.battery.as_ref()?;
+        let level = bat.read().await.ok()?;
+        level.first().copied()
     }
 
     async fn is_connected(&self) -> bool {
         match &self.connection {
-            Some((device, _)) => device.is_connected().await,
+            Some(Connection { device, .. }) => device.is_connected().await,
             None => false,
         }
     }
 
-    async fn write_state(&self, state: HapticState) -> Result<(), Box<dyn Error>> {
-        let (_, characteristic) = self
+    async fn write_state(&self, state: &HapticState) -> Result<(), Box<dyn Error + Send + Sync>> {
+        let Connection { haptic, .. } = self
             .connection
             .as_ref()
-            .ok_or("Not connected to haptics characteristic")?;
-        let bytes = state.as_le_bytes();
-        characteristic.write(&bytes).await?;
+            .ok_or("Not connected to haptic characteristic")?;
+        haptic.write(&state.as_le_bytes()).await?;
         Ok(())
     }
 
-    async fn find_device(&self) -> Result<(Device, Characteristic), Box<dyn Error>> {
+    async fn find_device(&self) -> Result<Connection, Box<dyn Error + Send + Sync>> {
         info!("Searching for PatMe-in-VR device...");
         let device = self
             .adapter
@@ -101,19 +138,46 @@ impl Client {
         self.adapter.connect_device(&device).await?;
         info!("Connected to device {}", device.id());
 
-        let characteristic = device
+        let haptic = device
             .services()
             .await?
             .iter()
             .find(|x| x.uuid() == SERVICE_UUID)
-            .ok_or("PatMe-in-VR service not found on the device")?
+            .ok_or("Haptic service not found on the device")?
             .characteristics()
             .await?
             .iter()
-            .find(|x| x.uuid() == HAPTICS_UUID)
-            .ok_or("PatMe-in-VR characteristic not found on the device")?
+            .find(|x| x.uuid() == HAPTIC_UUID)
+            .ok_or("Haptic characteristic not found on the device")?
             .clone();
 
-        Ok((device, characteristic))
+        let battery = match Self::find_battery(&device).await {
+            Ok(c) => Some(c),
+            Err(e) => {
+                warn!("{:?}", e);
+                None
+            }
+        };
+
+        Ok(Connection {
+            device,
+            haptic,
+            battery,
+        })
+    }
+
+    async fn find_battery(device: &Device) -> Result<Characteristic, Box<dyn Error + Send + Sync>> {
+        Ok(device
+            .services()
+            .await?
+            .iter()
+            .find(|x| x.uuid() == btuuid::services::BATTERY)
+            .ok_or("Battery service not found on the device")?
+            .characteristics()
+            .await?
+            .iter()
+            .find(|x| x.uuid() == btuuid::characteristics::BATTERY_LEVEL)
+            .ok_or("Battery level characteristic not found on the device")?
+            .clone())
     }
 }
