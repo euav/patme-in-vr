@@ -53,7 +53,7 @@ impl DecayFilter {
 impl HapticState {
     fn from_decay_filters(filters: &[DecayFilter], scale: f32) -> Self {
         Self {
-            force: filters.iter().map(|f| f.estimate() * scale).collect(),
+            strength: filters.iter().map(|f| f.estimate() * scale).collect(),
         }
     }
 }

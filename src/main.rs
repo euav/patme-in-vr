@@ -61,7 +61,7 @@ fn setup_gui_forwarding(
     let tx = gui_tx.clone();
     tokio::spawn(async move {
         while haptics_rx.changed().await.is_ok() {
-            let _ = tx.send(gui::GuiUpdate::Haptics(haptics_rx.borrow().force.clone()));
+            let _ = tx.send(gui::GuiUpdate::Haptics(haptics_rx.borrow().strength.clone()));
         }
     });
 
@@ -82,9 +82,9 @@ fn spawn_command_handler(
                 BridgeCommand::TestPulse(idx) => {
                     let state_rx = ble_tx.subscribe();
                     let current = state_rx.borrow().clone();
-                    if idx < current.force.len() {
+                    if idx < current.strength.len() {
                         let mut pulse = current.clone();
-                        pulse.force[idx] = 1.0;
+                        pulse.strength[idx] = 1.0;
                         let _ = ble_tx.send(pulse);
                         tokio::time::sleep(Duration::from_millis(150)).await;
                         let _ = ble_tx.send(current);

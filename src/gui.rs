@@ -1,5 +1,5 @@
 use iced::widget::{button, column, progress_bar, row, slider, text};
-use iced::{Alignment, Element, Subscription, Task};
+use iced::{Alignment, Element, Size, Subscription, Task};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -215,5 +215,6 @@ pub fn run_app(config: crate::Config) -> iced::Result {
     )
     .subscription(App::subscription)
     .title("PatMe in VR")
+    .window_size(Size::new(500f32, 400f32))
     .run()
 }

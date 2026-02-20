@@ -10,18 +10,18 @@ const RECONNECT_BACKOFF: Duration = Duration::from_millis(500);
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct HapticState {
-    pub force: Vec<f32>,
+    pub strength: Vec<f32>,
 }
 
 impl HapticState {
     pub fn new(size: usize) -> Self {
         Self {
-            force: vec![0f32; size],
+            strength: vec![0f32; size],
         }
     }
 
     pub fn as_le_bytes(&self) -> Vec<u8> {
-        self.force.iter().flat_map(|x| x.to_le_bytes()).collect()
+        self.strength.iter().flat_map(|x| x.to_le_bytes()).collect()
     }
 }
 

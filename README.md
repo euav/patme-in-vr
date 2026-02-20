@@ -43,3 +43,9 @@ You can configure host app via CLI flags or environment variables.
 
 - The host smooths incoming parameters with a decay filter and sends compacted float values to the device BLE characteristic.
 - BLE service/characteristic UUIDs are defined in the firmware and matched by the host: see [firmware/firmware.ino](firmware/firmware.ino) and [src/ble.rs](src/ble.rs).
+
+## TODO
+
+- Add OSCQuery port discovery
+- Add router for avatar parameters router and device pins 
+- Read the number of haptics from PatMe characteristic
