@@ -1,5 +1,5 @@
 use crate::ble::HapticState;
-use crate::osc::HapticParam;
+use crate::osc::PatMeParam;
 use std::collections::VecDeque;
 use tokio::sync::{mpsc::UnboundedReceiver, watch::Sender};
 use tokio::time::{Duration, Instant, MissedTickBehavior};
@@ -50,23 +50,24 @@ impl DecayFilter {
 }
 
 impl HapticState {
-    fn from_decay_filters(filters: &[DecayFilter]) -> Self {
+    fn from_decay_filters(filters: &[DecayFilter], scale: f32) -> Self {
         Self {
-            force: filters.iter().map(|filter| filter.estimate()).collect(),
+            force: filters.iter().map(|f| f.estimate() * scale).collect(),
         }
     }
 }
 
 pub struct Compactor {
-    params: UnboundedReceiver<HapticParam>,
+    osc_params: UnboundedReceiver<PatMeParam>,
     states: Sender<HapticState>,
     filters: Vec<DecayFilter>,
+    max_intensity: f32,
     send_interval: Duration,
 }
 
 impl Compactor {
     pub fn new(
-        params: UnboundedReceiver<HapticParam>,
+        osc_params: UnboundedReceiver<PatMeParam>,
         states: Sender<HapticState>,
         haptics_count: usize,
         send_interval: Duration,
@@ -74,9 +75,10 @@ impl Compactor {
         let filters = vec![DecayFilter::new(); haptics_count];
 
         Self {
-            params,
+            osc_params,
             states,
             filters,
+            max_intensity: 0.7f32,
             send_interval,
         }
     }
@@ -87,13 +89,21 @@ impl Compactor {
 
         loop {
             tokio::select! {
-                Some(HapticParam(index, value)) = self.params.recv() => {
-                    if index <  self.filters.len() {
-                        self.filters[index].append(value);
+                Some(patme_param) = self.osc_params.recv() => {
+                    match patme_param {
+                        PatMeParam::Touch(index, value) => {
+                            if index < self.filters.len() {
+                                self.filters[index].append(value);
+                            }
+                        }
+                        PatMeParam::Intensity(value) => {
+                            self.max_intensity = value;
+                        }
                     }
                 }
                 _ = tick.tick() => {
-                    let _ = self.states.send(HapticState::from_decay_filters(&self.filters));
+                    let scale = self.max_intensity;
+                    let _ = self.states.send(HapticState::from_decay_filters(&self.filters, scale));
                 }
             }
         }

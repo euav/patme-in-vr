@@ -2,39 +2,43 @@ use log::{debug, error, info};
 use rosc::{OscBundle, OscMessage, OscPacket, OscType};
 use tokio::{net::UdpSocket, sync::mpsc::UnboundedSender};
 
-const OSC_HAPTIC_PREFIX: &str = "/avatar/parameters/haptic_";
+const OSC_PATME_PREFIX: &str = "/avatar/parameters/PatMe/";
 
-#[derive(Clone, Debug, Default)]
-pub struct HapticParam(pub usize, pub f32);
+#[derive(Clone, Debug)]
+pub enum PatMeParam {
+    Intensity(f32),
+    Touch(usize, f32),
+}
 
-impl HapticParam {
+impl PatMeParam {
     fn try_from_message(msg: OscMessage) -> Option<Self> {
         let value = match msg.args.first()? {
-            OscType::Float(value) => *value,
+            OscType::Float(value) => value.clamp(0.0, 1.0),
             _ => return None,
         };
 
-        if msg.addr.starts_with(OSC_HAPTIC_PREFIX) && value.is_finite() {
-            return match msg.addr[OSC_HAPTIC_PREFIX.len()..]
-                .to_string()
-                .parse::<usize>()
-            {
-                Ok(index) => Some(Self(index, value.clamp(0.0, 1.0))),
-                _ => None,
-            };
+        if msg.addr.starts_with(OSC_PATME_PREFIX) && value.is_finite() {
+            let param_name = &msg.addr[OSC_PATME_PREFIX.len()..];
+            match param_name {
+                "Intensity" => Some(Self::Intensity(value)),
+                _ => match param_name.parse::<usize>() {
+                    Ok(index) => Some(Self::Touch(index, value)),
+                    _ => None,
+                }
+            }
+        } else {
+            None
         }
-
-        None
     }
 }
 
 pub struct Server {
     socket: UdpSocket,
-    sender: UnboundedSender<HapticParam>,
+    sender: UnboundedSender<PatMeParam>,
 }
 
 impl Server {
-    pub async fn new(port: u16, sender: UnboundedSender<HapticParam>) -> std::io::Result<Server> {
+    pub async fn new(port: u16, sender: UnboundedSender<PatMeParam>) -> std::io::Result<Server> {
         let socket = UdpSocket::bind(("0.0.0.0", port)).await?;
         info!("UDP socket {} has been bound", socket.local_addr()?);
         Ok(Self { socket, sender })
@@ -66,7 +70,7 @@ impl Server {
     fn handle_packet(&self, packet: OscPacket) {
         match packet {
             OscPacket::Message(message) => {
-                if let Some(param) = HapticParam::try_from_message(message) {
+                if let Some(param) = PatMeParam::try_from_message(message) {
                     debug!("osc> {:?}", param);
                     let _ = self.sender.send(param);
                 }
