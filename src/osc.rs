@@ -1,6 +1,7 @@
 use log::{debug, error, info};
 use rosc::{OscBundle, OscMessage, OscPacket, OscType};
-use tokio::{net::UdpSocket, sync::mpsc::UnboundedSender};
+use tokio::net::UdpSocket;
+use tokio::sync::broadcast::{Receiver, Sender};
 
 const OSC_PATME_PREFIX: &str = "/avatar/parameters/PatMe/";
 
@@ -34,17 +35,22 @@ impl PatMeParam {
 
 pub struct Server {
     socket: UdpSocket,
-    sender: UnboundedSender<PatMeParam>,
+    channel: Sender<PatMeParam>,
 }
 
 impl Server {
-    pub async fn new(port: u16, sender: UnboundedSender<PatMeParam>) -> std::io::Result<Server> {
+    pub async fn new(port: u16) -> std::io::Result<Server> {
         let socket = UdpSocket::bind(("0.0.0.0", port)).await?;
         info!("UDP socket {} has been bound", socket.local_addr()?);
-        Ok(Self { socket, sender })
+
+        Ok(Self { socket, channel: Sender::new(16) })
     }
 
-    pub async fn start(&self) {
+    pub fn channel(&self) -> Receiver<PatMeParam> {
+        self.channel.subscribe()
+    }
+
+    pub async fn serve(&self) {
         let mut buffer = [0u8; rosc::decoder::MTU];
         loop {
             let size = match self.socket.recv_from(&mut buffer).await {
@@ -72,7 +78,7 @@ impl Server {
             OscPacket::Message(message) => {
                 if let Some(param) = PatMeParam::try_from_message(message) {
                     debug!("osc> {:?}", param);
-                    let _ = self.sender.send(param);
+                    let _ = self.channel.send(param);
                 }
             }
             OscPacket::Bundle(OscBundle { content, .. }) => {

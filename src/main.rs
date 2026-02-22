@@ -105,16 +105,13 @@ pub async fn bridge(
     cmd_rx: Option<mpsc::UnboundedReceiver<BridgeCommand>>,
     gui_tx: Option<mpsc::UnboundedSender<gui::GuiUpdate>>,
 ) {
-    let (osc_tx, osc_rx) = mpsc::unbounded_channel();
     let (ble_tx, ble_rx) = watch::channel(ble::HapticState::new(config.haptics_count));
 
     let status_tx = setup_gui_forwarding(gui_tx.clone(), &ble_tx);
 
     let max_intensity_rx = cmd_rx.map(|rx| spawn_command_handler(rx, ble_tx.clone()));
 
-    let osc = osc::Server::new(config.osc_port, osc_tx)
-        .await
-        .expect("Failed to start OSC server");
+    let osc = osc::Server::new(config.osc_port).await.expect("Failed to start OSC server");
     if let Some(ref tx) = gui_tx {
         let _ = tx.send(gui::GuiUpdate::Osc(true));
     }
@@ -123,7 +120,7 @@ pub async fn bridge(
         .await
         .expect("Failed to create BLE client");
     let compactor = etl::Compactor::new(
-        osc_rx,
+        osc.channel(),
         ble_tx,
         config.haptics_count,
         Duration::from_millis(config.send_interval_ms),
@@ -131,7 +128,7 @@ pub async fn bridge(
     );
 
     tokio::select! {
-        _ = osc.start() => info!("OSC server task finished"),
+        _ = osc.serve() => info!("OSC server task finished"),
         _ = ble.start() => info!("BLE client task finished"),
         _ = compactor.start() => info!("Compaction task finished"),
         _ = signal::ctrl_c() => info!("Ctrl+C received, shutting down"),

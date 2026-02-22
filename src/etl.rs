@@ -2,7 +2,8 @@ use crate::ble::HapticState;
 use crate::osc::PatMeParam;
 use std::collections::VecDeque;
 use tokio::sync::watch::Sender;
-use tokio::sync::{mpsc::UnboundedReceiver, watch::Receiver};
+use tokio::sync::{watch::Receiver as WatchReceiver};
+use tokio::sync::broadcast::Receiver;
 use tokio::time::{Duration, Instant, MissedTickBehavior};
 
 #[derive(Clone)]
@@ -59,21 +60,21 @@ impl HapticState {
 }
 
 pub struct Compactor {
-    osc_params: UnboundedReceiver<PatMeParam>,
+    osc_params: Receiver<PatMeParam>,
     states: Sender<HapticState>,
     filters: Vec<DecayFilter>,
     max_intensity: f32,
     send_interval: Duration,
-    max_intensity_rx: Option<Receiver<u8>>,
+    max_intensity_rx: Option<WatchReceiver<u8>>,
 }
 
 impl Compactor {
     pub fn new(
-        osc_params: UnboundedReceiver<PatMeParam>,
+        osc_params: Receiver<PatMeParam>,
         states: Sender<HapticState>,
         haptics_count: usize,
         send_interval: Duration,
-        max_intensity_rx: Option<Receiver<u8>>,
+        max_intensity_rx: Option<WatchReceiver<u8>>,
     ) -> Self {
         let filters = vec![DecayFilter::new(); haptics_count];
 
@@ -105,7 +106,7 @@ impl Compactor {
 
         loop {
             tokio::select! {
-                Some(patme_param) = self.osc_params.recv() => {
+                Ok(patme_param) = self.osc_params.recv() => {
                     match patme_param {
                         PatMeParam::Touch(index, value) => {
                             if index < self.filters.len() {
