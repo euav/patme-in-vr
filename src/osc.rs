@@ -25,7 +25,7 @@ impl PatMeParam {
                 _ => match param_name.parse::<usize>() {
                     Ok(index) => Some(Self::Touch(index, value)),
                     _ => None,
-                }
+                },
             }
         } else {
             None
@@ -43,7 +43,10 @@ impl Server {
         let socket = UdpSocket::bind(("0.0.0.0", port)).await?;
         info!("UDP socket {} has been bound", socket.local_addr()?);
 
-        Ok(Self { socket, channel: Sender::new(16) })
+        Ok(Self {
+            socket,
+            channel: Sender::new(16),
+        })
     }
 
     pub fn channel(&self) -> Receiver<PatMeParam> {

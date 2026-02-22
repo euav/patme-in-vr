@@ -1,9 +1,9 @@
 use crate::ble::HapticState;
 use crate::osc::PatMeParam;
 use std::collections::VecDeque;
-use tokio::sync::watch::Sender;
-use tokio::sync::{watch::Receiver as WatchReceiver};
 use tokio::sync::broadcast::Receiver;
+use tokio::sync::watch::Receiver as WatchReceiver;
+use tokio::sync::watch::Sender;
 use tokio::time::{Duration, Instant, MissedTickBehavior};
 
 #[derive(Clone)]

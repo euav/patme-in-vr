@@ -61,7 +61,9 @@ fn setup_gui_forwarding(
     let tx = gui_tx.clone();
     tokio::spawn(async move {
         while haptics_rx.changed().await.is_ok() {
-            let _ = tx.send(gui::GuiUpdate::Haptics(haptics_rx.borrow().strength.clone()));
+            let _ = tx.send(gui::GuiUpdate::Haptics(
+                haptics_rx.borrow().strength.clone(),
+            ));
         }
     });
 
@@ -111,7 +113,9 @@ pub async fn bridge(
 
     let max_intensity_rx = cmd_rx.map(|rx| spawn_command_handler(rx, ble_tx.clone()));
 
-    let osc = osc::Server::new(config.osc_port).await.expect("Failed to start OSC server");
+    let osc = osc::Server::new(config.osc_port)
+        .await
+        .expect("Failed to start OSC server");
     if let Some(ref tx) = gui_tx {
         let _ = tx.send(gui::GuiUpdate::Osc(true));
     }
