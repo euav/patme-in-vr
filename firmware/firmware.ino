@@ -17,8 +17,6 @@ const uint8_t battery_pin = 1;
 const uint8_t n_haptics = 2;
 const uint8_t pins[n_haptics] = {2, 3};
 
-bool is_connected = false;
-uint32_t disconnected_at = 0;
 BLECharacteristic* battery_characteristic = nullptr;
 
 RTC_DATA_ATTR float strength[n_haptics] = {0};
@@ -38,25 +36,14 @@ class HapticCallback : public BLECharacteristicCallbacks {
   }
 };
 
-class ConnectionCallbacks: public BLEServerCallbacks {
-    void onConnect(BLEServer* server) {
-        is_connected = true;
-    }
-    void onDisconnect(BLEServer* server) {
-        is_connected = false;
-        disconnected_at = micros();
-    }
-};
-
 
 void setup_ble() {
-  BLEDevice::init("PatMe-in-VR");
+  BLEDevice::init("PatMe Headband");
   auto server = BLEDevice::createServer();
 
   auto pat = server->createService(PAT_SERVICE_UUID);
   auto haptic = pat->createCharacteristic(PAT_HAPTIC_UUID, BLECharacteristic::PROPERTY_WRITE);
   auto number = pat->createCharacteristic(PAT_NUMBER_UUID, BLECharacteristic::PROPERTY_READ);
-  server->setCallbacks(new ConnectionCallbacks());
   haptic->setCallbacks(new HapticCallback());
   number->setValue(n_haptics);
   pat->start();
@@ -69,7 +56,7 @@ void setup_ble() {
   advertising->addServiceUUID(PAT_SERVICE_UUID);
   advertising->setMinPreferred(0x06);
   advertising->setMaxPreferred(0x0C);
-  advertising->start(65 * 1000);
+  advertising->start(5 * 60 * 1000);
 }
 
 void setup() {
@@ -138,7 +125,7 @@ void update_battery_level() {
 }
 
 void loop() {
-  if (!is_connected && elapsed_since(disconnected_at) > 65.0f) {
+  if (!is_connected && elapsed_since(updated_at) > 300.0f) {
     BLEDevice::deinit(true);
     esp_deep_sleep_start();
   }
