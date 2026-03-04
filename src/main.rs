@@ -1,3 +1,5 @@
+#![windows_subsystem = "windows"]
+
 mod ble;
 mod etl;
 mod gui;
@@ -22,7 +24,7 @@ pub struct Config {
     #[arg(long, env = "PATME_HAPTICS_COUNT", default_value_t = 2)]
     haptics_count: usize,
 
-    #[arg(long, env = "PATME_SEND_INTERVAL_MS", default_value_t = 20)]
+    #[arg(long, env = "PATME_SEND_INTERVAL_MS", default_value_t = 30)]
     send_interval_ms: u64,
 
     #[arg(long)]
