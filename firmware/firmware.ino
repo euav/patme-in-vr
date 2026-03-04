@@ -19,9 +19,9 @@ const uint8_t pins[n_haptics] = {2, 3};
 
 BLECharacteristic* battery_characteristic = nullptr;
 
-RTC_DATA_ATTR float strength[n_haptics] = {0};
-RTC_DATA_ATTR float received[n_haptics] = {0};
-RTC_DATA_ATTR uint32_t updated_at = 0;
+float strength[n_haptics] = {0};
+float received[n_haptics] = {0};
+uint32_t updated_at = 0;
 
 
 class HapticCallback : public BLECharacteristicCallbacks {
@@ -72,7 +72,7 @@ void setup() {
   esp_sleep_enable_ext1_wakeup(1ULL << restart_pin, ESP_EXT1_WAKEUP_ANY_HIGH);
 }
 
-float elapsed_since(uint32_t instant) {
+float seconds_since(uint32_t instant) {
   return float(micros() - instant) / 1000.0f / 1000.0f;
 }
 
@@ -82,7 +82,7 @@ void update_haptic_levels() {
   const float speed = 18.0;
   const float lowest = 0.42;
 
-  float elapsed = elapsed_since(updated_at);
+  float elapsed = seconds_since(updated_at);
   float factor = constrain((exp(steep * (decay - elapsed)) - 1.0f) / (exp(steep) - 1.0f), 0.0f, 1.0f);
   for (int idx = 0; idx < n_haptics; idx++) {
     float increment = constrain(elapsed * speed, 0, 1) * (factor * received[idx] - strength[idx]);
@@ -125,7 +125,7 @@ void update_battery_level() {
 }
 
 void loop() {
-  if (!is_connected && elapsed_since(updated_at) > 300.0f) {
+  if (seconds_since(updated_at) > 300.0f) {
     BLEDevice::deinit(true);
     esp_deep_sleep_start();
   }
