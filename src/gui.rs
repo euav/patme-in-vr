@@ -123,7 +123,7 @@ impl App {
 
         let battery_status = match self.battery_pct {
             Some(pct) => format!("Battery: {}%", pct),
-            None => "Battery: —".to_string(),
+            None => "Battery: N/A".to_string(),
         };
 
         let status = column![

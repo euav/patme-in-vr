@@ -126,14 +126,14 @@ impl Client {
     }
 
     async fn find_device(&self) -> Result<Connection, Box<dyn Error + Send + Sync>> {
-        info!("Searching for PatMe-in-VR device...");
+        info!("Searching for PatMe device...");
         let device = self
             .adapter
             .discover_devices(&[SERVICE_UUID])
             .await?
             .next()
             .await
-            .ok_or("PatMe-in-VR device not found")??;
+            .ok_or("PatMe device not found")??;
 
         self.adapter.connect_device(&device).await?;
         info!("Connected to device {}", device.id());
