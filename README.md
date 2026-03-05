@@ -1,25 +1,20 @@
-# PatMe-in-VR, Haptic Feedback for VRChat
-
-Bridges VRChat's OSC avatar parameters to a Bluetooth LE haptic device, so your friends can **pat you in VR**. The host app is written in Rust; the device firmware is an Arduino (ESP32) sketch.
+![PatMe Headband](images/patme-headband.jpg)
 
 Inspired by the [Patstrap](https://github.com/danielfvm/Patstrap) project by [danielfvm](https://github.com/danielfvm).
 
 
-## What it does
+# PatMe in VR, Haptic Feedback for VRChat
 
-Host app listens for OSC avatar parameters from VRChat and forwards them as
-haptic intensity values over BLE to a PatMe-in-VR device.
+Bridges VRChat's OSC avatar parameters to a Bluetooth LE haptic device, so your friends can **pat you in VR**. The host app is written in Rust; the device firmware is an Arduino (ESP32) sketch; build instructions will be provided.
 
-- **Input**: OSC messages with addresses like `/avatar/parameters/haptic_0`
-  (and `_1`, etc.) and a single float argument.
+- **Input**: OSC messages with addresses
+  - `/avatar/parameters/PatMe/Intensity` from Expression Menu 
+  - `/avatar/parameters/PatMe/<id>` from Contact Receivers, where `id` is 0, 1 and so on
 - **Processing**: Values are time-smoothed and compacted into a small,
   fixed-size haptic state.
-- **Output**: The current haptic state is sent over BLE to the configured
-  service/characteristic on the device.
+- **Output**: The current haptic state is sent over BLE to the PatMe device in equal periods of time.
 
-## Configuration
-
-You can configure host app via CLI flags or environment variables.
+## Host application configuration
 
 - **OSC bind address**
   - Flag: `--osc-port <PORT>`
@@ -34,7 +29,7 @@ You can configure host app via CLI flags or environment variables.
 - **Send interval (ms)**
   - Flag: `--send-interval-ms <MS>`
   - Env: `PATME_SEND_INTERVAL_MS`
-  - Default: `20`
+  - Default: `30`
 
 - **Headless mode without GUI**
   - Flag: `--headless`
