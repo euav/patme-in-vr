@@ -1,12 +1,12 @@
 [package]
 name = "patme-in-vr"
 edition = "2024"
-version = "0.2.0"
+version = "0.2.1"
 authors = ["Evgeny Averyanov"]
 description = "Bridges VRChat's OSC avatar parameters to a Bluetooth LE haptic device"
 repository = "https://github.com/euav/patme-in-vr"
 readme = "README.md"
-keywords = ["ble", "esp32", "osc", "vrchat"]
+keywords = ["ble", "osc", "vrchat"]
 license = "MIT"
 categories = ["games"]
 exclude = ["firmware", ".github"]

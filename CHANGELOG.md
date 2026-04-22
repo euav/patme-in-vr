@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.2.1]
+
+### Added
+
+- **OSC**: Support for `PatMe/L` and `PatMe/R` parameters
+
+### Changed
+
+- **GUI**: Fixed "Test" buttons functionality
+- **Firmware**: Increased PWM frequency beyond audible range
+
 ## [0.2.0]
 
 ### Added

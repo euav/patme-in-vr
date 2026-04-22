@@ -2,7 +2,6 @@
 
 - Add OSCQuery port discovery
 - Add router for avatar parameters router and device pins
-- Fix Test button
 - Read the number of haptics from PatMe characteristic
 
 ## Firmware
