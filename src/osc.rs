@@ -21,6 +21,8 @@ impl PatMeParam {
         if msg.addr.starts_with(OSC_PATME_PREFIX) && value.is_finite() {
             let param_name = &msg.addr[OSC_PATME_PREFIX.len()..];
             match param_name {
+                "L" => Some(Self::Touch(0, value)),
+                "R" => Some(Self::Touch(1, value)),
                 "Intensity" => Some(Self::Intensity(value)),
                 _ => match param_name.parse::<usize>() {
                     Ok(index) => Some(Self::Touch(index, value)),
