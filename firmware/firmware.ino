@@ -2,7 +2,7 @@
 #include <BLEUtils.h>
 #include <BLEServer.h>
 
-#define DEEP_SLEEP_TIMEOUT 65535
+#define SLEEP_TIMEOUT 300.0
 #define BAS_SERVICE_UUID   "180F"
 #define BAS_LEVEL_UUID     "2A19"
 
@@ -11,17 +11,21 @@
 #define PAT_HAPTIC_UUID    "5db0ca73-7963-492d-8a9c-40bb6b84c2f0"
 #define PAT_NUMBER_UUID    "c90776b3-8369-42c2-a17c-8583f6b57abf"
 
-const int resolution = 12;
-const uint8_t restart_pin = 0;
-const uint8_t battery_pin = 1;
+
+const uint8_t reset_pin = 0;
+const uint8_t sense_pin = 1;
+const uint8_t ws2812_pin = 8; 
+
 const uint8_t n_haptics = 2;
 const uint8_t pins[n_haptics] = {2, 3};
+const uint8_t resolution = 8;
+const uint32_t frequency = 40000;
 
 BLECharacteristic* battery_characteristic = nullptr;
 
+uint32_t updated_at = 0;
 float strength[n_haptics] = {0};
 float received[n_haptics] = {0};
-uint32_t updated_at = 0;
 
 
 class HapticCallback : public BLECharacteristicCallbacks {
@@ -61,15 +65,14 @@ void setup_ble() {
 
 void setup() {
   setup_ble();
-  pinMode(restart_pin, INPUT);
-  pinMode(battery_pin, INPUT);
+  pinMode(reset_pin, INPUT);
+  pinMode(sense_pin, INPUT);
+  pinMode(ws2812_pin, INPUT);
   for (int idx = 0; idx < n_haptics; idx++) {
-    pinMode(pins[idx], OUTPUT);
-    analogWriteResolution(pins[idx], resolution);
-    digitalWrite(pins[idx], LOW);
+    ledcAttach(pins[idx], frequency, resolution);
   }
 
-  esp_sleep_enable_ext1_wakeup(1ULL << restart_pin, ESP_EXT1_WAKEUP_ANY_HIGH);
+  esp_sleep_enable_ext1_wakeup(1ULL << reset_pin, ESP_EXT1_WAKEUP_ANY_HIGH);
 }
 
 float seconds_since(uint32_t instant) {
@@ -80,7 +83,7 @@ void update_haptic_levels() {
   const float decay = 1.2;
   const float steep = 4.5;
   const float speed = 18.0;
-  const float lowest = 0.42;
+  const float lowest = 0.12;
 
   float elapsed = seconds_since(updated_at);
   float factor = constrain((exp(steep * (decay - elapsed)) - 1.0f) / (exp(steep) - 1.0f), 0.0f, 1.0f);
@@ -88,7 +91,7 @@ void update_haptic_levels() {
     float increment = constrain(elapsed * speed, 0, 1) * (factor * received[idx] - strength[idx]);
     strength[idx] = constrain(strength[idx] + increment, 0.0f, 1.0f);
     float cropped = strength[idx] ? lowest + (1.0f - lowest) * strength[idx] : 0.0f;
-    analogWrite(pins[idx], (int)(((1UL << resolution) - 1) * cropped));
+    ledcWrite(pins[idx], (1UL << resolution) * cropped);
   }
 }
 
@@ -119,18 +122,21 @@ void update_battery_level() {
   const float exp_window = 0.3f;
   static float voltage = 0.0f;
 
-  float reading = voltage_divider * (float)analogReadMilliVolts(battery_pin) / 1000.0f;
+  float reading = voltage_divider * (float)analogReadMilliVolts(sense_pin) / 1000.0f;
   voltage = exp_window * reading + (1.0f - exp_window) * voltage;
   battery_characteristic->setValue(battery_level(voltage));
 }
 
 void loop() {
-  if (seconds_since(updated_at) > 300.0f) {
+  if (seconds_since(updated_at) > SLEEP_TIMEOUT) {
     BLEDevice::deinit(true);
     esp_deep_sleep_start();
   }
 
-  if (digitalRead(restart_pin) == HIGH) {
+  if (digitalRead(reset_pin) == HIGH) {
+    for (int idx = 0; idx < n_haptics; idx++) {
+      ledcWrite(pins[idx], (1UL << resolution) - 1);
+    }
     BLEDevice::deinit(true);
     setup_ble();
   }
