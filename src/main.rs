@@ -11,6 +11,8 @@ use tokio::signal;
 use tokio::sync::{mpsc, watch};
 use tokio::time::Duration;
 
+use crate::ble::HapticState;
+
 #[derive(Parser, Debug, Clone)]
 #[command(
     name = "PatMe-in-VR",
@@ -84,15 +86,18 @@ fn spawn_command_handler(
         while let Some(cmd) = cmd_rx.recv().await {
             match cmd {
                 BridgeCommand::TestPulse(idx) => {
-                    let state_rx = ble_tx.subscribe();
-                    let current = state_rx.borrow().clone();
-                    if idx < current.strength.len() {
-                        let mut pulse = current.clone();
+                    let ble_tx = ble_tx.clone();
+                    tokio::spawn(async move {
+                        let mut pulse = HapticState::new(2);
                         pulse.strength[idx] = 1.0;
-                        let _ = ble_tx.send(pulse);
-                        tokio::time::sleep(Duration::from_millis(150)).await;
-                        let _ = ble_tx.send(current);
-                    }
+                        let start = tokio::time::Instant::now();
+                        let mut interval = tokio::time::interval(Duration::from_millis(10));
+
+                        while start.elapsed() < Duration::from_secs(1) {
+                            interval.tick().await;
+                            let _ = ble_tx.send(pulse.clone());
+                        }
+                    });
                 }
                 BridgeCommand::SetMaxIntensity(v) => {
                     let _ = max_intensity_tx.send(v.min(100));
