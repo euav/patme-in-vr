@@ -1,41 +1,101 @@
-![PatMe Headband](images/patme-headband.jpg)
+# PatMe in VR
 
-Inspired by the [Patstrap](https://github.com/danielfvm/Patstrap) project by [danielfvm](https://github.com/danielfvm).
+![PatMe headband](images/patme-headband.jpg)
 
+PatMe is a small wearable that turns VRChat headpats into real vibration feedback. It has two motors, connects over Bluetooth LE, and is driven by an ESP32-C6 Super Mini. The host application is written in Rust; the firmware is an Arduino sketch.
 
-# PatMe in VR, Haptic Feedback for VRChat
+> PatMe is an early-stage hardware project. The current host release targets Windows, and the hardware and firmware may still change.
 
-Bridges VRChat's OSC avatar parameters to a Bluetooth LE haptic device, so your friends can **pat you in VR**. The host app is written in Rust; the device firmware is an Arduino (ESP32) sketch; build instructions will be provided.
+I built it with two goals in mind:
 
-- **Input**: OSC messages with addresses
-  - `/avatar/parameters/PatMe/Intensity` from Expression Menu 
-  - `/avatar/parameters/PatMe/<id>` from Contact Receivers, where `id` is 0, 1 and so on
-- **Processing**: Values are time-smoothed and compacted into a small,
-  fixed-size haptic state.
-- **Output**: The current haptic state is sent over BLE to the PatMe device in equal periods of time.
+- **Easy to assemble.** The ESP32-C6 Super Mini variant I used has a built-in battery charger, which keeps the device simple and the part count low.
+- **Energy efficient.** BLE uses less power than Wi-Fi, and MOSFETs waste less power than BJTs when driving the motors.
 
-## Host application configuration
+## How it works
 
-- **OSC bind address**
-  - Flag: `--osc-port <PORT>`
-  - Env: `PATME_OSC_PORT`
-  - Default: `9001`
+VRChat sends Contact Receiver and Expression Menu values over OSC. The host application smooths those values and sends the current motor intensities to the wearable over BLE.
 
-- **Haptics count (number of vibros)**
-  - Flag: `--haptics-count <N>`
-  - Env: `PATME_HAPTICS_SIZE`
-  - Default: `2`
+![PatMe host application](images/app-screenshot.png)
 
-- **Send interval (ms)**
-  - Flag: `--send-interval-ms <MS>`
-  - Env: `PATME_SEND_INTERVAL_MS`
-  - Default: `30`
+The application also shows the OSC and BLE status, battery level, and current haptic values. The **Test** buttons are useful when checking a new build.
 
-- **Headless mode without GUI**
-  - Flag: `--headless`
+## Getting it running
 
-## Notes
+1. Assemble the device using the [schematic](#hardware).
+2. Follow the [firmware flashing instructions](firmware/README.md#building-and-flashing).
+3. Enable OSC in VRChat and add float avatar parameters as needed:
 
-- The host smooths incoming parameters with a decay filter and sends compacted float values to the device BLE characteristic.
-- BLE service/characteristic UUIDs are defined in the firmware and matched by the host: see [firmware/firmware.ino](firmware/firmware.ino) and [src/ble.rs](src/ble.rs).
+   - `PatMe/L` controls the left motor and is an alias for channel `0`.
+   - `PatMe/R` controls the right motor and is an alias for channel `1`.
+   - `PatMe/<num>` controls any zero-based numeric channel, for example `PatMe/0`, `PatMe/1`, or `PatMe/2`.
+   - `PatMe/Intensity` sets the maximum output intensity.
 
+   Parameter values should be between `0.0` and `1.0`. Numeric channel indices must be lower than `--haptics-count`; the default channel count is `2`.
+
+4. Download `patme-in-vr.exe` from the [latest release](https://github.com/euav/patme-in-vr/releases/latest) and run it.
+
+The application listens on OSC port `9001` and looks for a BLE device named `PatMe-in-VR`. For now, the original [Patstrap VRChat instructions](https://github.com/danielfvm/Patstrap#vrchat) are a useful reference for setting up Contact Receivers.
+
+### Command-line options
+
+| Option | Environment variable | Default |
+|---|---|---:|
+| `--osc-port <PORT>` | `PATME_OSC_PORT` | `9001` |
+| `--haptics-count <N>` | `PATME_HAPTICS_COUNT` | `2` |
+| `--send-interval-ms <MS>` | `PATME_SEND_INTERVAL_MS` | `30` |
+| `--headless` | — | off |
+
+For example:
+
+```powershell
+.\patme-in-vr.exe --headless
+```
+
+## Hardware
+
+![PatMe circuit schematic](images/schematics.png)
+
+The reference build uses:
+
+- ESP32-C6 Super Mini
+- 2 × vibration motors
+- 2 × 2N7000 N-channel MOSFETs
+- 2 × 1N5819 Schottky diodes
+- 2 × 100 Ω, 3 × 20 kΩ, and 2 × 200 kΩ resistors
+- A momentary push button
+- A 3.5 mm TRS jack and plug for the detachable headband
+- A battery suitable for the board
+
+The default firmware uses GPIO 0 for restart/wake, GPIO 1 for battery sensing, and GPIOs 2 and 3 for the left and right motors. More firmware details, including the BLE protocol, are in [`firmware/README.md`](firmware/README.md).
+
+Different ESP32-C6 Super Mini boards can have different battery-charging circuits. Check your exact board before connecting a cell, and take the usual precautions when building a battery-powered wearable.
+
+## Troubleshooting
+
+**The application cannot find the device.** Check that Bluetooth is enabled, then power-cycle the PatMe device or pull GPIO 0 high to wake it. Make sure it is not already connected to another host.
+
+**OSC is active, but the motors do not respond.** Check the avatar parameter names and make sure they send float values between `0.0` and `1.0`. Try the GUI's **Test** buttons: if they work, the problem is probably in the VRChat setup rather than BLE or the hardware.
+
+**The battery level is `N/A`.** Battery reporting is optional. This is expected if the Battery Service or battery-sense circuit is not available.
+
+**Port 9001 is already in use.** Choose another port and configure the OSC sender to match:
+
+```powershell
+.\patme-in-vr.exe --osc-port 9011
+```
+
+## Building the host application
+
+Install Rust 1.85 or later, then run:
+
+```console
+cargo build --release
+```
+
+The executable will be written to `target/release/`. During development, `cargo run` is usually enough.
+
+## Project notes
+
+See [`CHANGELOG.md`](CHANGELOG.md) for release history and [`TODO.md`](TODO.md) for ideas I would still like to explore.
+
+PatMe was inspired by Daniel F. V. Martins's [Patstrap](https://github.com/danielfvm/Patstrap) project and is available under the [MIT License](LICENSE).

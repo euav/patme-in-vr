@@ -1,6 +1,6 @@
-# PatMe-in-VR firmware for ESP32
+# PatMe in VR firmware for ESP32
 
-Firmware for the haptic device. Pairs with the host app to receive intensity values and drive vibromotors. Assumes Bluethooth LE compatable board, e.g. ESP32-C3, ESP32-C6
+Firmware for the haptic device. It pairs with the host application, receives intensity values, and drives vibration motors. It requires a Bluetooth LE-compatible board, such as an ESP32-C3 or ESP32-C6.
 
 ## Pinout
 
@@ -23,10 +23,10 @@ Adjust `pins[]` and `n_haptics` in `firmware.ino` if your wiring differs.
 
 ## Building and flashing
 
-1. Install [Arduino IDE](https://www.arduino.cc/en/software/)
+1. Install the [Arduino IDE](https://www.arduino.cc/en/software/).
 2. Install [ESP32 Arduino core](https://docs.espressif.com/projects/arduino-esp32/).
-3. Open `firmware.ino` in Arduino IDE (or add `firmware/` as a sketch).
-4. Select your ESP32 board and corresponding COM port, then Upload.
+3. Open `firmware.ino` in the Arduino IDE (or add `firmware/` as a sketch).
+4. Select your ESP32 board and corresponding COM port, then select **Upload**.
 5. The device should appear over BLE scan as `PatMe-in-VR`.
 
 ## Behavior
