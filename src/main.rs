@@ -4,6 +4,7 @@ mod ble;
 mod etl;
 mod gui;
 mod osc;
+mod osc_discovery;
 
 use clap::Parser;
 use log::info;
@@ -20,8 +21,12 @@ use crate::ble::HapticState;
     about = "VRChat's OSC to BLE haptics bridge"
 )]
 pub struct Config {
-    #[arg(long, env = "PATME_OSC_PORT", default_value_t = 9001)]
-    osc_port: u16,
+    #[arg(
+        long,
+        env = "PATME_OSC_PORT",
+        value_parser = clap::value_parser!(u16).range(1..)
+    )]
+    osc_port: Option<u16>,
 
     #[arg(long, env = "PATME_HAPTICS_COUNT", default_value_t = 2)]
     haptics_count: usize,
@@ -109,6 +114,23 @@ fn spawn_command_handler(
     max_intensity_rx
 }
 
+fn spawn_vrchat_status_forwarding(
+    gui_tx: Option<mpsc::UnboundedSender<gui::GuiUpdate>>,
+    mut status: watch::Receiver<bool>,
+) {
+    let Some(gui_tx) = gui_tx else {
+        return;
+    };
+
+    tokio::spawn(async move {
+        let _ = gui_tx.send(gui::GuiUpdate::Vrchat(*status.borrow_and_update()));
+        while status.changed().await.is_ok() {
+            let connected = *status.borrow_and_update();
+            let _ = gui_tx.send(gui::GuiUpdate::Vrchat(connected));
+        }
+    });
+}
+
 pub async fn bridge(
     config: Config,
     cmd_rx: Option<mpsc::UnboundedReceiver<BridgeCommand>>,
@@ -123,9 +145,7 @@ pub async fn bridge(
     let osc = osc::Server::new(config.osc_port)
         .await
         .expect("Failed to start OSC server");
-    if let Some(ref tx) = gui_tx {
-        let _ = tx.send(gui::GuiUpdate::Osc(true));
-    }
+    spawn_vrchat_status_forwarding(gui_tx.clone(), osc.vrchat_status());
 
     let mut ble = ble::Client::new(ble_rx, status_tx)
         .await

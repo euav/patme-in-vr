@@ -34,13 +34,13 @@ The application also shows the OSC and BLE status, battery level, and current ha
 
 4. Download `patme-in-vr.exe` from the [latest release](https://github.com/euav/patme-in-vr/releases/latest) and run it.
 
-The application listens on OSC port `9001` and looks for a BLE device named `PatMe-in-VR`. For now, the original [Patstrap VRChat instructions](https://github.com/danielfvm/Patstrap#vrchat) are a useful reference for setting up Contact Receivers.
+The application uses OSCQuery to advertise an automatically assigned OSC port to VRChat and looks for a BLE device named `PatMe-in-VR`. For now, the original [Patstrap VRChat instructions](https://github.com/danielfvm/Patstrap#vrchat) are a useful reference for setting up Contact Receivers.
 
 ### Command-line options
 
 | Option | Environment variable | Default |
 |---|---|---:|
-| `--osc-port <PORT>` | `PATME_OSC_PORT` | `9001` |
+| `--osc-port <PORT>` | `PATME_OSC_PORT` | automatic |
 | `--haptics-count <N>` | `PATME_HAPTICS_COUNT` | `2` |
 | `--send-interval-ms <MS>` | `PATME_SEND_INTERVAL_MS` | `30` |
 | `--headless` | — | off |
@@ -50,6 +50,8 @@ For example:
 ```powershell
 .\patme-in-vr.exe --headless
 ```
+
+When `--osc-port` or `PATME_OSC_PORT` is set, the application uses that exact port and exits if it cannot be bound. Without an override, Windows assigns an available port automatically.
 
 ## Hardware
 
@@ -78,11 +80,7 @@ Different ESP32-C6 Super Mini boards can have different battery-charging circuit
 
 **The battery level is `N/A`.** Battery reporting is optional. This is expected if the Battery Service or battery-sense circuit is not available.
 
-**Port 9001 is already in use.** Choose another port and configure the OSC sender to match:
-
-```powershell
-.\patme-in-vr.exe --osc-port 9011
-```
+**OSC is enabled in VRChat, but the application receives no values.** Make sure Windows Firewall allows the application to use the local network. OSCQuery uses mDNS to tell VRChat which automatically assigned port to use.
 
 ## Building the host application
 

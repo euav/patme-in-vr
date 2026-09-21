@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- **OSCQuery**: Advertise the OSC receiver through mDNS so VRChat can discover its automatically assigned UDP port; `--osc-port` and `PATME_OSC_PORT` remain available as strict overrides
+
 ## [0.2.1]
 
 ### Added

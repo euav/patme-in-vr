@@ -7,7 +7,7 @@ use std::time::Duration;
 #[derive(Debug, Clone)]
 pub enum GuiUpdate {
     Ble(bool),
-    Osc(bool),
+    Vrchat(bool),
     Haptics(Vec<f32>),
     Battery(u8),
     Intensity(u8),
@@ -19,17 +19,15 @@ pub struct AppFlags {
     pub gui_tx: tokio::sync::mpsc::UnboundedSender<GuiUpdate>,
     pub cmd_tx: tokio::sync::mpsc::UnboundedSender<crate::BridgeCommand>,
     pub cmd_rx: Arc<Mutex<Option<tokio::sync::mpsc::UnboundedReceiver<crate::BridgeCommand>>>>,
-    pub osc_port: u16,
     pub haptics_count: usize,
     pub send_interval_ms: u64,
 }
 
 #[derive(Clone, Debug)]
 pub struct App {
-    pub osc_port: u16,
+    pub vrchat_connected: bool,
     pub haptics_count: usize,
     pub send_interval_ms: u64,
-    pub osc_listening: bool,
     pub ble_connected: bool,
     pub battery_pct: Option<u8>,
     pub haptics: Vec<f32>,
@@ -54,10 +52,9 @@ impl App {
     ) -> (Self, Task<Message>) {
         (
             Self {
-                osc_port: flags.osc_port,
+                vrchat_connected: false,
                 haptics_count: flags.haptics_count,
                 send_interval_ms: flags.send_interval_ms,
-                osc_listening: false,
                 ble_connected: false,
                 battery_pct: None,
                 haptics: Vec::new(),
@@ -98,7 +95,7 @@ impl App {
         while let Ok(update) = rx.try_recv() {
             match update {
                 GuiUpdate::Ble(connected) => self.ble_connected = connected,
-                GuiUpdate::Osc(listening) => self.osc_listening = listening,
+                GuiUpdate::Vrchat(connected) => self.vrchat_connected = connected,
                 GuiUpdate::Haptics(strength) => self.haptics = strength,
                 GuiUpdate::Battery(pct) => self.battery_pct = Some(pct),
                 GuiUpdate::Intensity(intensity) => self.max_intensity = intensity,
@@ -111,9 +108,9 @@ impl App {
     }
 
     pub fn view(&self) -> Element<'_, Message> {
-        let osc_status = match self.osc_listening {
-            true => format!("OSC listening on port {}", self.osc_port),
-            false => "OSC: not started".to_string(),
+        let vrchat_status = match self.vrchat_connected {
+            true => "VRChat: Connected",
+            false => "VRChat: Searching...",
         };
 
         let ble_status = match self.ble_connected {
@@ -128,7 +125,7 @@ impl App {
 
         let status = column![
             text("Status").size(16),
-            text(osc_status).size(12),
+            text(vrchat_status).size(12),
             text(ble_status).size(12),
             text(battery_status).size(12),
         ]
@@ -195,7 +192,6 @@ pub fn run_app(config: crate::Config) -> iced::Result {
     let rx_arc = Arc::new(Mutex::new(gui_rx));
     let cmd_rx_cell = Arc::new(Mutex::new(Some(cmd_rx)));
 
-    let osc_port = config.osc_port;
     let haptics_count = config.haptics_count;
     let send_interval_ms = config.send_interval_ms;
     let flags = AppFlags {
@@ -203,7 +199,6 @@ pub fn run_app(config: crate::Config) -> iced::Result {
         gui_tx,
         cmd_tx,
         cmd_rx: cmd_rx_cell,
-        osc_port,
         haptics_count,
         send_interval_ms,
     };

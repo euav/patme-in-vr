@@ -1,7 +1,7 @@
 ## Software
 
-- Add OSCQuery port discovery
 - Add router for avatar parameters router and device pins
+- Synchronize Intensity parameter between host and VRChat
 - Read the number of haptics from PatMe characteristic
 
 ## Firmware

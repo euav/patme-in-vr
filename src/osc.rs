@@ -1,5 +1,7 @@
+use crate::osc_discovery::Discovery;
 use log::{debug, error, info};
 use rosc::{OscBundle, OscMessage, OscPacket, OscType};
+use std::io;
 use tokio::net::UdpSocket;
 use tokio::sync::broadcast::{Receiver, Sender};
 
@@ -38,21 +40,29 @@ impl PatMeParam {
 pub struct Server {
     socket: UdpSocket,
     channel: Sender<PatMeParam>,
+    _discovery: Discovery,
 }
 
 impl Server {
-    pub async fn new(port: u16) -> std::io::Result<Server> {
-        let socket = UdpSocket::bind(("0.0.0.0", port)).await?;
-        info!("UDP socket {} has been bound", socket.local_addr()?);
+    pub async fn new(port: Option<u16>) -> io::Result<Server> {
+        let socket = UdpSocket::bind(("0.0.0.0", port.unwrap_or(0))).await?;
+        let port = socket.local_addr()?.port();
+        let discovery = Discovery::new(port).await?;
+        info!("OSC UDP socket {} has been bound", socket.local_addr()?);
 
         Ok(Self {
             socket,
             channel: Sender::new(16),
+            _discovery: discovery,
         })
     }
 
     pub fn channel(&self) -> Receiver<PatMeParam> {
         self.channel.subscribe()
+    }
+
+    pub fn vrchat_status(&self) -> tokio::sync::watch::Receiver<bool> {
+        self._discovery.vrchat_status()
     }
 
     pub async fn serve(&self) {
